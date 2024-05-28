@@ -1,0 +1,134 @@
+import pygame  # Import the pygame module
+import sys  # Import the sys module
+import random  # Import the random module
+
+# Initialize Pygame
+pygame.init()  # Initialize Pygame
+
+# Set up the screen
+SCREEN_WIDTH = 800  # Set the width of the screen
+SCREEN_HEIGHT = 600  # Set the height of the screen
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))  # Create the game window
+pygame.display.set_caption("Breakout Game")  # Set the title of the game window
+
+# Define colors
+BLACK = (0, 0, 0)  # Define the color black
+WHITE = (255, 255, 255)  # Define the color white
+BLUE = (0, 0, 255)  # Define the color blue
+RED = (255, 0, 0)  # Define the color red
+GREEN = (0, 255, 0)  # Define the color green
+YELLOW = (255, 255, 0)  # Define the color yellow
+PADDLE_COLOR = (255, 165, 0)  # Define the color orange for the paddle
+BALL_COLOR = RED  # Define the color red for the ball
+
+# Define game variables
+PADDLE_WIDTH = 100  # Set the width of the paddle
+PADDLE_HEIGHT = 10  # Set the height of the paddle
+PADDLE_SPEED = 8  # Set the speed of the paddle
+
+BALL_RADIUS = 10  # Set the radius of the ball
+BALL_SPEED_X = 5  # Set the horizontal speed of the ball
+BALL_SPEED_Y = -5  # Set the vertical speed of the ball
+
+BRICK_WIDTH = 60  # Set the width of a brick
+BRICK_HEIGHT = 20  # Set the height of a brick
+BRICK_GAP = 2  # Set the gap between bricks
+
+# Calculate the number of bricks to fill one-third of the screen vertically
+BRICK_ROWS = SCREEN_HEIGHT // 3 // (BRICK_HEIGHT + BRICK_GAP)
+
+# Calculate the number of bricks to fill the screen horizontally
+BRICK_COLS = (SCREEN_WIDTH - BRICK_GAP) // (BRICK_WIDTH + BRICK_GAP)
+
+# Generate random colors for bricks
+BRICK_COLORS = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for _ in range(BRICK_ROWS * BRICK_COLS)]
+
+# Create the paddle
+paddle_rect = pygame.Rect((SCREEN_WIDTH - PADDLE_WIDTH) // 2, SCREEN_HEIGHT - PADDLE_HEIGHT - 10, PADDLE_WIDTH, PADDLE_HEIGHT)
+
+# Create the ball
+def create_ball():  # Define a function to create the ball
+    return pygame.Rect(random.randint(0, SCREEN_WIDTH - BALL_RADIUS * 2), random.randint(0, SCREEN_HEIGHT // 2), BALL_RADIUS * 2, BALL_RADIUS * 2)  # Return a rectangle representing the ball's position and size
+
+ball_rect = create_ball()  # Create the ball rectangle using the create_ball function
+ball_velocity = [BALL_SPEED_X, BALL_SPEED_Y]  # Define the initial velocity of the ball
+
+# Create the bricks
+bricks = []  # Create an empty list to store brick rectangles
+for row in range(BRICK_ROWS):  # Iterate over the number of rows
+    for col in range(BRICK_COLS):  # Iterate over the number of columns
+        brick_rect = pygame.Rect(col * (BRICK_WIDTH + BRICK_GAP), row * (BRICK_HEIGHT + BRICK_GAP), BRICK_WIDTH, BRICK_HEIGHT)  # Create a rectangle representing a brick
+        bricks.append(brick_rect)  # Add the brick rectangle to the bricks list
+
+# Main game loop
+def main():  # Define the main function
+    clock = pygame.time.Clock()  # Create a Clock object to control the frame rate
+    game_over = False  # Initialize the game_over flag to False
+
+    while not game_over:  # Main game loop
+        # Event handling
+        for event in pygame.event.get():  # Loop through all events
+            if event.type == pygame.QUIT:  # Check if the user clicked the close button
+                pygame.quit()  # Quit Pygame
+                sys.exit()  # Exit the program
+
+        # Move the paddle
+        keys = pygame.key.get_pressed()  # Get a list of currently pressed keys
+        if keys[pygame.K_LEFT] and paddle_rect.left > 0:  # Check if the left arrow key is pressed and the paddle is not at the left edge of the screen
+            paddle_rect.move_ip(-PADDLE_SPEED, 0)  # Move the paddle to the left
+        if keys[pygame.K_RIGHT] and paddle_rect.right < SCREEN_WIDTH:  # Check if the right arrow key is pressed and the paddle is not at the right edge of the screen
+            paddle_rect.move_ip(PADDLE_SPEED, 0)  # Move the paddle to the right
+
+        # Move the ball
+        ball_rect.move_ip(ball_velocity[0], ball_velocity[1])  # Move the ball based on its velocity
+
+        # Ball collision with walls
+        if ball_rect.left < 0 or ball_rect.right > SCREEN_WIDTH:  # Check if the ball hits the left or right wall
+            ball_velocity[0] = -ball_velocity[0]  # Reverse the horizontal velocity of the ball
+        if ball_rect.top < 0:  # Check if the ball hits the top wall
+            ball_velocity[1] = -ball_velocity[1]  # Reverse the vertical velocity of the ball
+
+        # Ball collision with paddle
+        if ball_rect.colliderect(paddle_rect):  # Check if the ball collides with the paddle
+            ball_velocity[1] = -ball_velocity[1]  # Reverse the vertical velocity of the ball
+            offset = ball_rect.centerx - paddle_rect.centerx  # Calculate the offset between the ball's center and the paddle's center
+            ball_velocity[0] = offset / (PADDLE_WIDTH / 2) * BALL_SPEED_X  # Adjust the horizontal velocity based on the offset
+
+        # Ball collision with bricks
+        for brick in bricks[:]:  # Iterate over a copy of the bricks list
+            if ball_rect.colliderect(brick):  # Check if the ball collides with a brick
+                bricks.remove(brick)  # Remove the brick from the list of bricks
+                ball_velocity[1] = -ball_velocity[1]  # Reverse the vertical velocity of the ball
+
+        # Game over if ball passes through the paddle
+        if ball_rect.top > SCREEN_HEIGHT:  # Check if the ball goes past the paddle
+            game_over = True  # Set the game_over flag to True
+
+        # Draw everything
+        screen.fill(BLACK)  # Fill the screen with black color
+        pygame.draw.rect(screen, PADDLE_COLOR, paddle_rect)  # Draw the paddle
+        pygame.draw.circle(screen, BALL_COLOR, ball_rect.center, BALL_RADIUS)  # Draw the ball
+        for brick, color in zip(bricks, BRICK_COLORS):  # Loop through bricks and their corresponding colors
+            pygame.draw.rect(screen, color, brick)  # Draw each brick with its respective color
+
+        pygame.display.flip()  # Update the display
+        clock.tick(60)  # Control the frame rate to 60 FPS
+
+        # Check if all bricks are destroyed
+        if not bricks:  # If there are no more bricks left
+            game_over = True  # Set the game_over flag to True
+
+    # Game over message
+    font = pygame.font.Font(None, 36)  # Create a font object
+    text = font.render("Game Over", True, WHITE)  # Render the text "Game Over"
+    text_rect = text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))  # Get the rectangle of the text
+    screen.blit(text, text_rect)  # Display the text on the screen
+    pygame.display.flip()  # Update the display
+    pygame.time.wait(2000)  # Wait for 2 seconds before quitting
+
+    pygame.quit()  # Quit Pygame
+    sys.exit()  # Exit the program
+
+# Run the game
+if __name__ == "__main__":  # Check if this module is being run as the main program
+    main()  # Call the main function
